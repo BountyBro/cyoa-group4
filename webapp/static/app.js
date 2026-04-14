@@ -432,7 +432,11 @@ function saveStory() {
 let mermaidInitialized = false;
 function ensureMermaidInitialized() {
   if (mermaidInitialized || !window.mermaid || !mermaid.initialize) return;
-  mermaid.initialize({ startOnLoad: false, securityLevel: "loose" });
+  mermaid.initialize({
+    startOnLoad: false,
+    securityLevel: "loose",
+    flowchart: { useMaxWidth: false, htmlLabels: true },
+  });
   mermaidInitialized = true;
 }
 
@@ -450,6 +454,14 @@ function refreshGraph() {
       .then((value) => {
         const svg = value && value.svg ? value.svg : value;
         graphPreview.innerHTML = svg || "";
+        const svgEl = graphPreview.querySelector("svg");
+        if (svgEl) {
+          svgEl.removeAttribute("width");
+          svgEl.removeAttribute("height");
+          svgEl.style.maxWidth = "none";
+          svgEl.style.width = "auto";
+          svgEl.style.height = "auto";
+        }
         if (value && typeof value.bindFunctions === "function") {
           value.bindFunctions(graphPreview);
         }
