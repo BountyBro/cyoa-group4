@@ -1,0 +1,155 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Inter, system-ui, sans-serif;
+  background: #f4f6fb;
+  color: #111827;
+}
+
+header {
+  padding: 24px;
+  background: #0f172a;
+  color: white;
+}
+
+header h1 {
+  margin: 0 0 8px;
+  font-size: clamp(1.8rem, 2vw, 2.5rem);
+}
+
+header p {
+  margin: 0;
+  color: #cbd5e1;
+}
+
+main {
+  display: grid;
+  gap: 24px;
+  padding: 24px;
+}
+
+.editor-panel {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 24px;
+}
+
+.page-list,
+.page-detail,
+.graph-panel {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+  padding: 20px;
+}
+
+.page-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.pages {
+  margin-top: 16px;
+  display: grid;
+  gap: 10px;
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.page-item {
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  cursor: pointer;
+}
+
+.page-item.selected {
+  border-color: #2563eb;
+  background: #eff6ff;
+}
+
+.field {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+label {
+  font-weight: 600;
+}
+
+input,
+textarea {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+  padding: 12px;
+  font: inherit;
+}
+
+textarea {
+  resize: vertical;
+}
+
+button {
+  border: none;
+  border-radius: 999px;
+  padding: 10px 16px;
+  background: #2563eb;
+  color: white;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+button:hover {
+  transform: translateY(-1px);
+  background: #1d4ed8;
+}
+
+.choices {
+  display: grid;
+  gap: 10px;
+}
+
+.choice-item {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px;
+  background: #f8fafc;
+}
+
+.choice-item input {
+  width: calc(50% - 12px);
+}
+
+.choice-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.choice-row button {
+  background: #dc2626;
+}
+
+.graph {
+  min-height: 420px;
+  overflow: auto;
+}
+
+.notes {
+  margin-top: 16px;
+  color: #475569;
+}
+
+@media (max-width: 960px) {
+  .editor-panel {
+    grid-template-columns: 1fr;
+  }
+}

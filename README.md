@@ -1,3 +1,8 @@
+# Required Contents
+Site URL: [FILL IN ONCE UPLOADED.]
+Repo URL: https://github.com/BountyBro/cyoa-group4
+Group Names: Dilshan Bedi, Leo Kotok, Noah Brestel
+
 # choose-your-own-adventure
 
 ## Build Story Graph
@@ -59,3 +64,19 @@ python3 scripts/reextract_cot_ocr_split.py \
 Generated output:
 
 - `output/cot-pages-ocr-v2/*.txt`: OCR re-extraction using left/right half-page splitting
+
+## Authoring Tool
+
+A new lightweight authoring tool is available under `webapp/`.
+
+Run:
+
+```bash
+python webapp/server.py
+```
+
+Then open:
+
+```
+http://127.0.0.1:8000/
+```

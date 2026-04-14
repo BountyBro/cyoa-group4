@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CYOA Authoring Tool</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+</head>
+<body>
+  <header>
+    <h1>Choose Your Own Adventure Authoring Tool</h1>
+    <p>Edit pages, add choices, and preview the story graph.</p>
+  </header>
+
+  <main>
+    <section class="editor-panel">
+      <div class="page-list">
+        <div class="page-list-header">
+          <h2>Pages</h2>
+          <button id="add-page-button">Add page</button>
+          <button id="save-button">Save</button>
+        </div>
+        <div id="pages" class="pages"></div>
+      </div>
+
+      <div class="page-detail">
+        <h2>Page details</h2>
+        <div class="field">
+          <label for="page-title">Title</label>
+          <input id="page-title" type="text" />
+        </div>
+        <div class="field">
+          <label for="page-text">Text</label>
+          <textarea id="page-text" rows="10"></textarea>
+        </div>
+        <div class="field">
+          <label>Choices</label>
+          <div id="choices" class="choices"></div>
+          <button id="add-choice-button">Add choice</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="graph-panel">
+      <h2>Graph preview</h2>
+      <div id="graphPreview" class="graph"></div>
+      <div class="notes">
+        <p>This preview uses Mermaid. Save and refresh the page to update the graph.</p>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
