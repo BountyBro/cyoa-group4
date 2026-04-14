@@ -443,13 +443,22 @@ function refreshGraph() {
     graphPreview.textContent = "Mermaid is not available.";
     return;
   }
+  const renderId = `mermaid-${Date.now()}`;
   try {
-    const renderId = `mermaid-${Date.now()}`;
-    mermaid.render(renderId, mermaidText, (svgCode) => {
-      graphPreview.innerHTML = svgCode;
-    });
+    const result = mermaid.render(renderId, mermaidText);
+    Promise.resolve(result)
+      .then((value) => {
+        const svg = value && value.svg ? value.svg : value;
+        graphPreview.innerHTML = svg || "";
+        if (value && typeof value.bindFunctions === "function") {
+          value.bindFunctions(graphPreview);
+        }
+      })
+      .catch((error) => {
+        graphPreview.textContent = `Graph render failed: ${error.message || error}`;
+      });
   } catch (error) {
-    graphPreview.textContent = error.message;
+    graphPreview.textContent = `Graph render failed: ${error.message || error}`;
   }
 }
 
@@ -461,8 +470,9 @@ function storyToMermaid(story) {
     lines.push(`${sanitizeId(page.id)}["${escapeMermaid(label)}"]`);
     for (const choice of page.choices || []) {
       if (choice.target && story.pages[choice.target]) {
-        const choiceLabel = choice.label ? escapeMermaid(choice.label) : `Go to ${choice.target}`;
-        lines.push(`${sanitizeId(page.id)} -->|${choiceLabel}| ${sanitizeId(choice.target)}`);
+        const rawLabel = choice.label ? choice.label : `Go to ${choice.target}`;
+        const choiceLabel = truncateLabel(escapeMermaid(rawLabel), 60);
+        lines.push(`${sanitizeId(page.id)} -- "${choiceLabel}" --> ${sanitizeId(choice.target)}`);
       }
     }
     lines.push(`click ${sanitizeId(page.id)} call selectPageFromGraph("${escapeMermaid(page.id)}")`);
@@ -475,7 +485,14 @@ function sanitizeId(value) {
 }
 
 function escapeMermaid(text) {
-  return String(text).replace(/"/g, '\\"').replace(/\n/g, " ");
+  return String(text)
+    .replace(/[\r\n]+/g, " ")
+    .replace(/"/g, "&quot;")
+    .replace(/#/g, "&#35;");
+}
+
+function truncateLabel(text, max) {
+  return text.length > max ? text.slice(0, max - 1) + "…" : text;
 }
 
 function computeStoryStatus(story) {
