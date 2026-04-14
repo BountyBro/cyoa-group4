@@ -1,3 +1,28 @@
+const STORAGE_KEY = "cyoa-authoring-story";
+
+const DEFAULT_STORY = {
+  startPageId: "1",
+  pages: {
+    "1": {
+      id: "1",
+      title: "Start",
+      text: "Write the opening of your story here. Add choices to branch the adventure.",
+      choices: [
+        {
+          label: "Add a choice to begin",
+          target: "2",
+        },
+      ],
+    },
+    "2": {
+      id: "2",
+      title: "Next Page",
+      text: "Write the next page of the story.",
+      choices: [],
+    },
+  },
+};
+
 let story = null;
 let storyStatus = null;
 let currentPageId = null;
@@ -28,23 +53,47 @@ const statusSummary = document.getElementById("statusSummary");
 const statusDetail = document.getElementById("statusDetail");
 const graphPreview = document.getElementById("graphPreview");
 
-async function fetchStory() {
-  const response = await fetch("/api/story");
-  story = await response.json();
+function loadStoryFromLocalStorage() {
+  try {
+    const json = localStorage.getItem(STORAGE_KEY);
+    if (!json) {
+      return null;
+    }
+    const data = JSON.parse(json);
+    if (data && data.pages && typeof data.pages === "object") {
+      return data;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function saveStoryToLocalStorage(value) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
+}
+
+function downloadFile(content, filename, type) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
+function fetchStory() {
+  story = loadStoryFromLocalStorage() || JSON.parse(JSON.stringify(DEFAULT_STORY));
   currentPageId = story.startPageId || Object.keys(story.pages)[0];
   renderPages();
   renderCurrentPage();
-  await refreshGraph();
-  await refreshStatus();
+  refreshGraph();
+  refreshStatus();
 }
 
-async function refreshStatus() {
-  const response = await fetch("/api/status");
-  if (response.ok) {
-    storyStatus = await response.json();
-  } else {
-    storyStatus = null;
-  }
+function refreshStatus() {
+  storyStatus = computeStoryStatus(story);
   renderStatus();
 }
 
@@ -299,27 +348,18 @@ function deletePage(pageId) {
   renderCurrentPage();
 }
 
-async function saveStory() {
+function saveStory() {
   if (mode === "edit") {
     updateCurrentPage();
   }
-  const response = await fetch("/api/story", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(story),
-  });
-  if (response.ok) {
-    await refreshGraph();
-    await refreshStatus();
-    alert("Story saved successfully.");
-  } else {
-    alert("Failed to save story.");
-  }
+  saveStoryToLocalStorage(story);
+  refreshGraph();
+  refreshStatus();
+  alert("Story saved locally in your browser.");
 }
 
-async function refreshGraph() {
-  const response = await fetch("/api/graph");
-  const mermaidText = await response.text();
+function refreshGraph() {
+  const mermaidText = storyToMermaid(story);
   if (!window.mermaid || !mermaid.render) {
     graphPreview.textContent = "Mermaid is not available.";
     return;
@@ -332,6 +372,150 @@ async function refreshGraph() {
   } catch (error) {
     graphPreview.textContent = error.message;
   }
+}
+
+function storyToMermaid(story) {
+  const lines = ["flowchart LR"];
+  for (const pageId of Object.keys(story.pages || {}).sort((a, b) => Number(a) - Number(b))) {
+    const page = story.pages[pageId];
+    const label = page.title ? `${page.id}: ${page.title}` : `Page ${page.id}`;
+    lines.push(`${sanitizeId(page.id)}["${escapeMermaid(label)}"]`);
+    for (const choice of page.choices || []) {
+      if (choice.target && story.pages[choice.target]) {
+        const choiceLabel = choice.label ? escapeMermaid(choice.label) : `Go to ${choice.target}`;
+        lines.push(`${sanitizeId(page.id)} -->|${choiceLabel}| ${sanitizeId(choice.target)}`);
+      }
+    }
+  }
+  return lines.join("\n");
+}
+
+function sanitizeId(value) {
+  return `page_${String(value).replace(/[^a-zA-Z0-9_]/g, "_")}`;
+}
+
+function escapeMermaid(text) {
+  return String(text).replace(/"/g, '\\"').replace(/\n/g, " ");
+}
+
+function computeStoryStatus(story) {
+  const pages = story.pages || {};
+  const parents = {};
+  for (const pageId of Object.keys(pages)) {
+    parents[pageId] = [];
+  }
+  for (const [pageId, page] of Object.entries(pages)) {
+    for (const choice of page.choices || []) {
+      const target = String(choice.target || "").trim();
+      if (target && target in parents) {
+        parents[target].push(pageId);
+      }
+    }
+  }
+  const startPage = chooseStartPage(story);
+  const statusMap = {};
+  let terminalPages = 0;
+  let orphanPages = 0;
+  let branchPages = 0;
+  let emptyPages = 0;
+  for (const [pageId, page] of Object.entries(pages)) {
+    const text = String(page.text || "").trim();
+    const outCount = (page.choices || []).filter((choice) => choice.target).length;
+    const inCount = (parents[pageId] || []).length;
+    const isTerminal = outCount === 0;
+    const isOrphan = inCount === 0 && pageId !== startPage;
+    const isBranch = outCount > 1;
+    const isEmpty = text.length === 0;
+    if (isTerminal) terminalPages += 1;
+    if (isOrphan) orphanPages += 1;
+    if (isBranch) branchPages += 1;
+    if (isEmpty) emptyPages += 1;
+    statusMap[pageId] = {
+      incoming: inCount,
+      outgoing: outCount,
+      is_terminal: isTerminal,
+      is_orphan: isOrphan,
+      is_branch: isBranch,
+      is_start: pageId === startPage,
+      has_text: !isEmpty,
+    };
+  }
+  const unreachablePages = Object.entries(statusMap).filter(([, stats]) => stats.incoming === 0 && !stats.is_start).length;
+  return {
+    total_pages: Object.keys(pages).length,
+    start_page: startPage,
+    page_count: Object.keys(pages).length,
+    terminal_pages: terminalPages,
+    orphan_pages: orphanPages,
+    branch_pages: branchPages,
+    empty_pages: emptyPages,
+    unreachable_pages: unreachablePages,
+    page_status: statusMap,
+  };
+}
+
+function chooseStartPage(story) {
+  const pages = story.pages || {};
+  const startPage = story.startPageId;
+  if (startPage && startPage in pages) {
+    return startPage;
+  }
+  const keys = Object.keys(pages);
+  if (keys.length > 0) {
+    return keys.sort((a, b) => Number(a) - Number(b))[0];
+  }
+  return "1";
+}
+
+function generateStoryVariants(story, maxDecisions = 20) {
+  const pages = story.pages || {};
+  const startPage = chooseStartPage(story);
+  const results = [];
+  function dfs(path, decisionPoints) {
+    const current = path[path.length - 1];
+    const page = pages[current];
+    if (!page) {
+      results.push({ path: [...path], reason: "missing" });
+      return;
+    }
+    const choices = (page.choices || []).filter((choice) => choice.target);
+    if (choices.length === 0) {
+      results.push({ path: [...path], reason: "end" });
+      return;
+    }
+    const nextDecisionPoints = decisionPoints + (choices.length > 1 ? 1 : 0);
+    if (nextDecisionPoints > maxDecisions) {
+      results.push({ path: [...path], reason: "max-decisions" });
+      return;
+    }
+    for (const choice of choices) {
+      const target = String(choice.target);
+      if (path.includes(target)) {
+        results.push({ path: [...path, target], reason: "cycle" });
+        continue;
+      }
+      dfs([...path, target], nextDecisionPoints);
+    }
+  }
+  dfs([startPage], 0);
+  return results.map(({ path, reason }) => ({ path, reason, text: renderPathText(path, story, reason) }));
+}
+
+function renderPathText(path, story, reason) {
+  const pages = story.pages || {};
+  const lines = ["Path: " + path.join(" -> "), ""];
+  for (let idx = 0; idx < path.length; idx += 1) {
+    const pageId = path[idx];
+    const page = pages[pageId] || {};
+    lines.push(`=== Step ${idx + 1}: Page ${pageId} ===`);
+    lines.push(page.text || "[Missing page text]");
+    lines.push("");
+  }
+  if (reason !== "end") {
+    lines.push(`[Path terminated by: ${reason}]`);
+    lines.push("");
+  }
+  return lines.join("\n").trim() + "\n";
 }
 
 function renderStatus() {
@@ -377,18 +561,8 @@ function renderStatus() {
   statusDetail.innerHTML = details.join("");
 }
 
-async function importCoT() {
-  if (!confirm("Import the Cave of Time pages and replace the current story?")) {
-    return;
-  }
-  const response = await fetch("/api/import");
-  if (response.ok) {
-    const result = await response.json();
-    await fetchStory();
-    alert(`Imported ${result.page_count} pages. Start page: ${result.start_page}.`);
-  } else {
-    alert("Import failed. Make sure the server is run from the repo root and the OCR pages exist.");
-  }
+function importCoT() {
+  alert("Import from the server is disabled in static mode. Use Upload Story to load a story JSON file instead.");
 }
 
 function setMode(newMode) {
@@ -429,14 +603,17 @@ function downloadStory() {
   URL.revokeObjectURL(url);
 }
 
-async function generateVariants() {
-  const response = await fetch("/api/generate");
-  if (response.ok) {
-    const result = await response.json();
-    alert(`Generated ${result.story_count} story variants in ${result.output_dir}.`);
-  } else {
-    alert("Failed to generate story variants.");
+function generateVariants() {
+  if (mode === "edit") {
+    updateCurrentPage();
   }
+  const variants = generateStoryVariants(story);
+  if (variants.length === 0) {
+    alert("No variants were generated.");
+    return;
+  }
+  downloadFile(JSON.stringify(variants, null, 2), "story-variants.json", "application/json");
+  alert(`Generated ${variants.length} story variants and downloaded them as story-variants.json.`);
 }
 
 function handleUploadFile(event) {
@@ -445,18 +622,15 @@ function handleUploadFile(event) {
     return;
   }
   const reader = new FileReader();
-  reader.addEventListener("load", async () => {
+  reader.addEventListener("load", () => {
     try {
       const imported = JSON.parse(String(reader.result));
-      const response = await fetch("/api/story", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(imported),
-      });
-      if (!response.ok) {
-        throw new Error("Failed to save uploaded story.");
+      story = imported;
+      if (!story.startPageId) {
+        story.startPageId = chooseStartPage(story);
       }
-      await fetchStory();
+      saveStoryToLocalStorage(story);
+      fetchStory();
       alert("Story uploaded successfully.");
     } catch (error) {
       alert(`Upload failed: ${error.message}`);

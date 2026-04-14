@@ -1,6 +1,6 @@
 # ToDo
 
-_Last reviewed against repo state at commit `955982d` (post-pull from main)._
+_Last reviewed against repo state at commit `dd1dba6` (post-Netlify refactor)._
 
 ## What's Already Built
 
@@ -13,41 +13,42 @@ Location: [cyoa-group4/](cyoa-group4/)
 - [scripts/render_story_graph_svg.py](cyoa-group4/scripts/render_story_graph_svg.py) — renders the Mermaid graph to SVG
 - Outputs in [cyoa-group4/output/](cyoa-group4/output/): `cot-pages-ocr-v2/` (125 pages), `cot-story-graph.mmd`, `cot-story-graph.svg`, `cot-stories/` (45 stories + manifest)
 
-### 2. Web authoring tool — significantly expanded
-Location: [webapp/](webapp/)
+### 2. Web authoring tool — now 100% static (Netlify-ready)
+Location: [webapp/static/](webapp/static/)
 
-- **Stack**: Pure Python stdlib `http.server` (no Flask); vanilla JS frontend; Mermaid.js CDN for graph rendering
-- **Backend** [webapp/server.py](webapp/server.py):
-  - `GET /api/story` — load story JSON
-  - `POST /api/story` — save story JSON
-  - `GET /api/status` — per-page health data (orphan/terminal/branch/empty flags)
-  - `GET /api/graph` — generate Mermaid syntax
-  - `GET /api/import` — import Cave of Time OCR pages into the editor
-  - `GET /api/generate` — enumerate and write all story variants as .txt files
-- **Data model** [webapp/story_model.py](webapp/story_model.py): `Story { startPageId, pages: { id → { id, title, text, choices:[{label, target}] } } }` plus computed `story_status()` with per-page badges and aggregate counts
-- **Persistence**: single file `output/authoring-story.json` (gitignored)
-- **UI** [webapp/static/](webapp/static/):
+- **Stack**: Static site, no backend. Vanilla JS + Mermaid.js CDN. Deployable to Netlify via [netlify.toml](netlify.toml) (publishes `webapp/static`)
+- **Persistence**: `localStorage` key `cyoa-authoring-story` (per-browser, per-device); plus JSON upload/download for portability
+- **Data model** (in [webapp/static/app.js](webapp/static/app.js)): `Story { startPageId, pages: { id → { id, title, text, choices:[{label, target}] } } }`. Backend-equivalent logic is now client-side:
+  - `storyToMermaid()` — generates Mermaid `flowchart LR` syntax
+  - `computeStoryStatus()` — per-page orphan/terminal/branch/empty flags and aggregate counts
+  - `generateStoryVariants()` + `renderPathText()` — DFS variant enumeration with cycle and max-decision limits
+- **UI features**:
   - Edit mode with title/text/choices editor, add/delete choices
+  - **Page deletion** — hover-revealed × button on each page item; warns about dangling incoming choices and reassigns `startPageId` when deleting the start page
   - **Reader mode** — click-through playthrough with back-to-start
   - **Page search** — live filter of the page list
   - **Upload / Download JSON** — import/export story files from the browser
-  - **Generate Variants** button — writes bounded stories to `output/authoring-stories/`
-  - **Import CoT** button — loads the extracted Cave of Time as an example
+  - **Generate Variants** button — downloads all bounded paths as `story-variants.json`
   - **Status panel** — live counts for terminal/branching/orphan/empty/unreachable
   - **Page badges** — Start / Terminal / Orphan / Branch / Empty flags next to each page
-  - Graph auto-refresh on save
+  - Live Mermaid graph preview
 
 ---
 
 ## What's Still Missing
 
+### Regressions caused by the Netlify static refactor
+- **Import CoT button is broken** — `importCoT()` in [webapp/static/app.js](webapp/static/app.js) now just shows an alert: "Import from the server is disabled in static mode. Use Upload Story to load a story JSON file instead." The Cave of Time example is no longer reachable from the UI. Fix: ship a pre-built `authoring-story.cot.json` inside `webapp/static/` and have the button `fetch()` it as a static asset
+- **Orphaned backend code** — [webapp/server.py](webapp/server.py), [webapp/story_model.py](webapp/story_model.py), and [scripts/import_to_authoring.py](scripts/import_to_authoring.py) are no longer used by the deployed site. Either delete them or keep them as an optional local-dev fallback and document the split
+- **localStorage is single-browser** — there is no longer any way to share an in-progress story across devices or browsers except manual Download/Upload JSON
+- **Starter story is hardcoded in JS** — `DEFAULT_STORY` lives at the top of [webapp/static/app.js](webapp/static/app.js) instead of a JSON asset, so editing the starter requires a code change
+
 ### Authoring tool — remaining gaps
-- ~~**No page deletion in UI**~~ — ✅ Done: hover over any page in the sidebar to reveal a × button; warns about dangling choices before deleting
-- **No choice-target validation on save** — a choice pointing to a non-existent page is accepted silently. Status panel flags dangling targets after the fact, but the edit form doesn't warn while typing
-- **OCR import is regex-fragile** — [webapp/story_model.py:235-251](webapp/story_model.py) works well for CoT but would break on stories with different choice phrasing
+- **No choice-target validation while editing** — a choice pointing to a non-existent page is accepted silently. Status panel flags dangling targets after the fact, but the edit form doesn't warn while typing
+- **Deleted pages leave dangling choices behind** — `deletePage` warns the user but doesn't offer to clean up the now-broken `target` references in other pages
 - **Mode switches drop unsaved edits silently** — `setMode("reader")` calls `updateCurrentPage()` which mutates in-memory only; nothing warns about unsaved state
 - **Graph isn't interactive** — Mermaid renders but you can't click a node to jump to that page
-- **No undo / history** — destructive actions (delete choice, Import CoT) are one-way
+- **No undo / history** — destructive actions (delete choice, delete page, upload) are one-way
 
 ### Reader / export
 - **No standalone static-HTML export** — Fork-Instructions calls for a shippable reader so end-users can play a completed story without the server. Current reader mode only works inside the authoring app
@@ -55,15 +56,18 @@ Location: [webapp/](webapp/)
 
 ### Project hygiene
 - **No tests anywhere** — neither the extraction pipeline nor the webapp has any automated tests
-- **Duplicate `output/` trees** — both root `output/` and [cyoa-group4/output/](cyoa-group4/output/) hold identical `cot-pages-ocr-v2/` (125 files each) and graph/story artifacts. Pick one source of truth; `webapp/story_model.py` already reads from the root `output/cot-pages-ocr-v2`
+- **Duplicate `output/` trees** — both root `output/` and [cyoa-group4/output/](cyoa-group4/output/) hold identical `cot-pages-ocr-v2/` (125 files each) and graph/story artifacts. Now that the webapp is static and doesn't read them, these are pure source-data duplicates — pick one
 - **No AI session log for webapp work** — Fork-Instructions asks contributors to keep chat logs like [AI-session-log-20260408950.json](AI-session-log-20260408950.json); nothing exists for the post-fork authoring-tool work
-- **No CLAUDE.md / AGENTS.md** — conventions, run commands, and the "run server from repo root" rule live only in [Codebase.md](Codebase.md) and [webapp/README.md](webapp/README.md)
+- **No CLAUDE.md / AGENTS.md** — conventions and run commands live only in [Codebase.md](Codebase.md) and [webapp/README.md](webapp/README.md)
+- **`webapp/README.md` and [Codebase.md](Codebase.md) are out of sync with the refactor** — README was updated for static mode but Codebase.md still describes the old server workflow
 
 ---
 
 ## Suggested Next Priorities
 
-1. **Static HTML reader export** — biggest user-facing gap; small scope (render the existing reader pane as a self-contained `.html` bundle)
-2. **Page deletion + choice-target validation** — tightens the core authoring loop
-3. **Consolidate the duplicate `output/` directories** — low-risk cleanup that prevents drift
-4. **Clickable graph nodes** — Mermaid supports click handlers; would make navigation much nicer for medium/large stories
+1. **Fix the broken Import CoT button** — ship `cot-example.json` as a static asset and load it via `fetch()`; restores a one-click example without needing a server
+2. **Decide on the orphaned backend** — either delete [webapp/server.py](webapp/server.py) + [webapp/story_model.py](webapp/story_model.py) + [scripts/import_to_authoring.py](scripts/import_to_authoring.py), or keep them as an opt-in local dev mode and document the two-track workflow
+3. **Static HTML reader export** — biggest remaining Fork-Instructions gap; render a reader-only bundle that can be handed to end-users without the authoring UI
+4. **Choice-target validation + dangling-choice cleanup** — extend `deletePage` to optionally strip broken targets and show red outlines on invalid choice inputs while editing
+5. **Clickable graph nodes** — Mermaid supports click handlers; would make navigation much nicer for medium/large stories
+6. **Update [Codebase.md](Codebase.md)** to reflect static-only mode so the next contributor doesn't re-learn from stale notes
