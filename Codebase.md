@@ -2,7 +2,10 @@
 
 ## Purpose
 
-This workspace extracts text from the scanned PDF of The Cave of Time, builds a story graph from the extracted pages, writes all possible bounded story paths, and renders the graph as SVG.
+This workspace has two parts:
+
+1. **Extraction pipeline** (`scripts/`, `output/`) — OCR-extracts text from the scanned PDF of The Cave of Time, builds a Mermaid story graph, enumerates bounded story paths, and renders the graph as SVG. Covered in detail below.
+2. **Static web authoring tool** ([webapp/static/](webapp/static/)) — vanilla JS + Mermaid.js single-page app for authoring branching stories. No backend; persists to `localStorage` and ships as a Netlify static site (see [netlify.toml](netlify.toml) and [webapp/README.md](webapp/README.md)). The old Python backend (`webapp/server.py`, `webapp/story_model.py`) was removed during the Netlify refactor; all graph/status/variant logic now lives client-side in [webapp/static/app.js](webapp/static/app.js). The Cave of Time example shipped in the webapp (`webapp/static/cot-example.json`) is regenerated from the OCR pages by [scripts/import_to_authoring.py](scripts/import_to_authoring.py).
 
 ## Canonical Source Of Truth
 

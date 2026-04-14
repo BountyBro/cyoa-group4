@@ -521,6 +521,7 @@ function computeStoryStatus(story) {
     };
   }
   const unreachablePages = Object.entries(statusMap).filter(([, stats]) => stats.incoming === 0 && !stats.is_start).length;
+  const similarEndingGroups = findSimilarEndings(pages, statusMap);
   return {
     total_pages: Object.keys(pages).length,
     start_page: startPage,
@@ -530,8 +531,22 @@ function computeStoryStatus(story) {
     branch_pages: branchPages,
     empty_pages: emptyPages,
     unreachable_pages: unreachablePages,
+    similar_ending_groups: similarEndingGroups,
     page_status: statusMap,
   };
+}
+
+function findSimilarEndings(pages, statusMap) {
+  const buckets = {};
+  for (const [pageId, stats] of Object.entries(statusMap)) {
+    if (!stats.is_terminal) continue;
+    const text = String(pages[pageId].text || "");
+    const normalized = text.toLowerCase().replace(/\s+/g, " ").trim();
+    if (normalized.length === 0) continue;
+    const key = normalized.slice(-80);
+    (buckets[key] = buckets[key] || []).push(pageId);
+  }
+  return Object.values(buckets).filter((group) => group.length > 1);
 }
 
 function chooseStartPage(story) {
@@ -633,6 +648,13 @@ function renderStatus() {
   }
   if (storyStatus.unreachable_pages > 0) {
     details.push(`<div class="status-note">Unreachable pages: ${storyStatus.unreachable_pages}</div>`);
+  }
+  const similar = storyStatus.similar_ending_groups || [];
+  if (similar.length > 0) {
+    const summary = similar
+      .map((group) => group.join(", "))
+      .join(" · ");
+    details.push(`<div class="status-note">Similar endings (${similar.length} group${similar.length === 1 ? "" : "s"}): ${escapeHtml(summary)}</div>`);
   }
   if (details.length === 0) {
     details.push(`<div class="status-note">Story structure looks healthy.</div>`);
