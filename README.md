@@ -1,7 +1,7 @@
 # Required Contents
-Site URL: [FILL IN ONCE UPLOADED.]
-Repo URL: https://github.com/BountyBro/cyoa-group4
-Group Names: Dilshan Bedi, Leo Kotok, Noah Brestel
+Site URL: cyoa4.netlify.app \
+Repo URL: https://github.com/BountyBro/cyoa-group4 \
+Group Names: Dilshan Bedi, Leo Kotok, Noah Brestel \
 
 # choose-your-own-adventure
 
