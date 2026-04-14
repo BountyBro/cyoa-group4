@@ -73,6 +73,7 @@ const undoButton = document.getElementById("undo-button");
 const downloadButton = document.getElementById("download-button");
 const generateButton = document.getElementById("generate-button");
 const exportReaderButton = document.getElementById("export-reader-button");
+const openGraphButton = document.getElementById("open-graph-button");
 const uploadButton = document.getElementById("upload-button");
 const uploadInput = document.getElementById("upload-input");
 const editModeButton = document.getElementById("edit-mode-button");
@@ -454,14 +455,6 @@ function refreshGraph() {
       .then((value) => {
         const svg = value && value.svg ? value.svg : value;
         graphPreview.innerHTML = svg || "";
-        const svgEl = graphPreview.querySelector("svg");
-        if (svgEl) {
-          svgEl.removeAttribute("width");
-          svgEl.removeAttribute("height");
-          svgEl.style.maxWidth = "none";
-          svgEl.style.width = "auto";
-          svgEl.style.height = "auto";
-        }
         if (value && typeof value.bindFunctions === "function") {
           value.bindFunctions(graphPreview);
         }
@@ -753,6 +746,49 @@ function downloadStory() {
   URL.revokeObjectURL(url);
 }
 
+function openGraphPopup() {
+  if (mode === "edit") {
+    updateCurrentPage();
+    persist();
+  }
+  const mermaidText = storyToMermaid(story);
+  const popup = window.open("", "cyoa-graph", "width=1100,height=800");
+  if (!popup) {
+    alert("Popup blocked. Allow popups for this site to open the graph in a window.");
+    return;
+  }
+  const safeText = mermaidText
+    .replace(/</g, "\\u003c")
+    .replace(/-->/g, "--\\u003e");
+  popup.document.open();
+  popup.document.write(`<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Story graph</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></` + `script>
+<style>
+  html, body { margin: 0; height: 100%; background: #f8fafc; font-family: Inter, system-ui, sans-serif; }
+  #wrap { padding: 20px; min-height: 100%; box-sizing: border-box; }
+  .mermaid { background: #fff; border-radius: 12px; padding: 16px; box-shadow: 0 8px 24px rgba(15,23,42,0.08); }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <pre class="mermaid">${escapeHtml(mermaidText)}</pre>
+</div>
+<script>
+  const text = ${JSON.stringify(safeText)};
+  window.addEventListener("load", () => {
+    if (!window.mermaid) return;
+    mermaid.initialize({ startOnLoad: true, securityLevel: "loose", flowchart: { useMaxWidth: false, htmlLabels: true } });
+  });
+</` + `script>
+</body>
+</html>`);
+  popup.document.close();
+}
+
 function exportReader() {
   if (mode === "edit") {
     updateCurrentPage();
@@ -882,6 +918,7 @@ saveButton.addEventListener("click", saveStory);
 downloadButton.addEventListener("click", downloadStory);
 generateButton.addEventListener("click", generateVariants);
 exportReaderButton?.addEventListener("click", exportReader);
+openGraphButton?.addEventListener("click", openGraphPopup);
 uploadButton.addEventListener("click", () => uploadInput.click());
 uploadInput.addEventListener("change", handleUploadFile);
 editModeButton.addEventListener("click", () => setMode("edit"));

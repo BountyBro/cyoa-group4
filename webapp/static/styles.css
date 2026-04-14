@@ -404,6 +404,14 @@ button:disabled:hover {
   color: #92400e;
 }
 
+.graph-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
 .graph {
   min-height: 420px;
   max-height: 75vh;
