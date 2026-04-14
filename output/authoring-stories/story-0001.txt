@@ -1,0 +1,7 @@
+Path: 1 -> 2
+
+=== Step 1: Page 1 ===
+Write the opening of your story here. Add choices to branch the adventure.
+
+=== Step 2: Page 2 ===
+Write the next page of the story.

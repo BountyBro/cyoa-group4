@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Tuple
 
 STORY_FILE = Path("output") / "authoring-story.json"
 STORY_OUTPUT_DIR = Path("output") / "authoring-stories"
-COT_PAGES_DIR = Path("cyoa-group4") / "output" / "cot-pages-ocr-v2"
+COT_PAGES_DIR = Path("output") / "cot-pages-ocr-v2"
 
 _PAGE_FILE_RE = re.compile(r"^(\d+)-CoT\.txt$")
 _TURN_TO_RE = re.compile(
@@ -61,6 +61,73 @@ def save_story(story: Story) -> None:
 
 def story_pages(story: Story) -> Dict[str, StoryPage]:
     return story.get("pages", {})
+
+
+def page_parents(story: Story) -> Dict[str, List[str]]:
+    pages = story_pages(story)
+    parents: Dict[str, List[str]] = {page_id: [] for page_id in pages}
+    for page_id, page in pages.items():
+        for choice in page.get("choices", []):
+            target = str(choice.get("target", "")).strip()
+            if target and target in parents:
+                parents[target].append(page_id)
+    return parents
+
+
+def story_status(story: Story) -> Dict[str, object]:
+    pages = story_pages(story)
+    parents = page_parents(story)
+    start_page = choose_start_page(story)
+    status_map: Dict[str, Dict[str, object]] = {}
+
+    terminal_pages = 0
+    orphan_pages = 0
+    branch_pages = 0
+    empty_pages = 0
+    unreachable_pages = 0
+
+    for page_id, page in pages.items():
+        text = str(page.get("text", "")).strip()
+        out_count = sum(1 for choice in page.get("choices", []) if choice.get("target"))
+        in_count = len(parents.get(page_id, []))
+        is_terminal = out_count == 0
+        is_orphan = in_count == 0 and page_id != start_page
+        is_branch = out_count > 1
+        is_empty = len(text) == 0
+
+        if is_terminal:
+            terminal_pages += 1
+        if is_orphan:
+            orphan_pages += 1
+        if is_branch:
+            branch_pages += 1
+        if is_empty:
+            empty_pages += 1
+
+        status_map[page_id] = {
+            "incoming": in_count,
+            "outgoing": out_count,
+            "is_terminal": is_terminal,
+            "is_orphan": is_orphan,
+            "is_branch": is_branch,
+            "is_start": page_id == start_page,
+            "has_text": not is_empty,
+        }
+
+    total_pages = len(pages)
+    unreachable_pages = sum(1 for page_id, stats in status_map.items() if stats["incoming"] == 0 and not stats["is_start"])
+
+    return {
+        "total_pages": total_pages,
+        "start_page": start_page,
+        "page_count": total_pages,
+        "terminal_pages": terminal_pages,
+        "orphan_pages": orphan_pages,
+        "branch_pages": branch_pages,
+        "empty_pages": empty_pages,
+        "unreachable_pages": unreachable_pages,
+        "page_status": status_map,
+    }
 
 
 def choose_start_page(story: Story) -> str:

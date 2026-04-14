@@ -8,7 +8,15 @@ from http.server import HTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import urlparse
 
-from story_model import generate_story_variants, import_cot_pages, load_story, save_story, save_story_variants, story_to_mermaid
+from story_model import (
+    generate_story_variants,
+    import_cot_pages,
+    load_story,
+    save_story,
+    save_story_variants,
+    story_status,
+    story_to_mermaid,
+)
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
@@ -24,6 +32,9 @@ class AuthoringRequestHandler(SimpleHTTPRequestHandler):
         parsed = urlparse(self.path)
         if parsed.path == "/api/story":
             self.send_json(load_story())
+            return
+        if parsed.path == "/api/status":
+            self.send_json(story_status(load_story()))
             return
         if parsed.path == "/api/graph":
             self.send_text(story_to_mermaid(load_story()), content_type="text/plain")

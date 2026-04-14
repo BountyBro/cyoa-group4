@@ -9,49 +9,87 @@
 </head>
 <body>
   <header>
-    <h1>Choose Your Own Adventure Authoring Tool</h1>
-    <p>Edit pages, add choices, and preview the story graph.</p>
+    <div class="header-content">
+      <div>
+        <h1>Choose Your Own Adventure</h1>
+        <p>Author, inspect, and read branching stories with live graph visualization.</p>
+      </div>
+      <div class="header-actions">
+        <button id="save-button">Save Story</button>
+        <button id="download-button">Download JSON</button>
+        <button id="generate-button">Generate Variants</button>
+        <button id="import-button" title="Import Cave of Time pages from OCR extraction">Import CoT</button>
+        <button id="upload-button">Upload Story</button>
+      </div>
+    </div>
   </header>
 
-  <main>
-    <section class="editor-panel">
-      <div class="page-list">
-        <div class="page-list-header">
-          <h2>Pages</h2>
-          <button id="add-page-button">Add page</button>
-          <button id="import-button" title="Load the Cave of Time as an example story">Load Example</button>
-          <button id="save-button">Save</button>
-        </div>
-        <div id="pages" class="pages"></div>
+  <main class="app-grid">
+    <aside class="panel sidebar">
+      <div class="panel-header">
+        <h2>Pages</h2>
+        <button id="add-page-button" class="secondary">Add</button>
+      </div>
+      <div class="page-search">
+        <input id="page-search" type="search" placeholder="Search pages..." />
+      </div>
+      <div id="pages" class="pages"></div>
+    </aside>
+
+    <section class="panel workspace">
+      <div class="mode-tabs">
+        <button id="edit-mode-button" class="active">Edit</button>
+        <button id="reader-mode-button">Reader</button>
       </div>
 
-      <div class="page-detail">
-        <h2>Page details</h2>
+      <div id="editorPane" class="editor-pane">
         <div class="field">
-          <label for="page-title">Title</label>
-          <input id="page-title" type="text" />
+          <label for="page-title">Page title</label>
+          <input id="page-title" type="text" placeholder="Page title" />
         </div>
         <div class="field">
-          <label for="page-text">Text</label>
-          <textarea id="page-text" rows="10"></textarea>
+          <label for="page-text">Page text</label>
+          <textarea id="page-text" rows="14" placeholder="Enter page text here"></textarea>
         </div>
         <div class="field">
-          <label>Choices</label>
+          <div class="field-row">
+            <label>Choices</label>
+            <button id="add-choice-button" class="secondary">Add choice</button>
+          </div>
           <div id="choices" class="choices"></div>
-          <button id="add-choice-button">Add choice</button>
+        </div>
+      </div>
+
+      <div id="readerPane" class="reader-pane hidden">
+        <div class="reader-header">
+          <div>
+            <h2 id="reader-title">Reader mode</h2>
+            <p class="muted">Follow the story from the current page and choose a path.</p>
+          </div>
+          <button id="reader-reset-button" class="secondary">Reset to Start</button>
+        </div>
+        <div id="reader-content" class="reader-content">
+          <h3 id="reader-page-title"></h3>
+          <div id="reader-page-text" class="reader-text"></div>
+          <div id="reader-choices" class="reader-choices"></div>
         </div>
       </div>
     </section>
 
-    <section class="graph-panel">
-      <h2>Graph preview</h2>
-      <div id="graphPreview" class="graph"></div>
-      <div class="notes">
-        <p>This preview uses Mermaid. Save and refresh the page to update the graph.</p>
+    <aside class="panel right-panel">
+      <div class="status-panel">
+        <h2>Story health</h2>
+        <div id="statusSummary" class="status-summary"></div>
+        <div id="statusDetail" class="status-detail"></div>
       </div>
-    </section>
+      <div class="graph-panel">
+        <h2>Graph preview</h2>
+        <div id="graphPreview" class="graph"></div>
+      </div>
+    </aside>
   </main>
 
+  <input type="file" id="upload-input" accept="application/json" hidden />
   <script src="app.js"></script>
 </body>
 </html>
