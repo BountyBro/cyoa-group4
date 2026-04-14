@@ -41,7 +41,7 @@ The `cot-example.json` shipped in `webapp/static/` is built from the OCR pages v
 python scripts/import_to_authoring.py --output webapp/static/cot-example.json
 ```
 
-Only needed if the source OCR or import logic changes.
+Only needed if the source OCR or import logic changes. The `cyoa-group4/` OCR source tree is not checked into this repo — clone it locally (or pass `--pages-dir`) before regenerating.
 
 ## Notes
 
