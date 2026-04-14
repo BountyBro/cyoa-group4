@@ -52,7 +52,7 @@ _All five items below were closed in [webapp/static/app.js](webapp/static/app.js
 - ~~**No undo / history**~~ — 30-entry `undoStack`; `snapshot()` is taken before add/delete page, add/delete choice, and upload. Undo button in the header plus Ctrl/Cmd+Z
 
 ### Reader / export
-- **No standalone static-HTML export** — Fork-Instructions calls for a shippable reader so end-users can play a completed story without the server. Current reader mode only works inside the authoring app
+- ~~**No standalone static-HTML export**~~ — `exportReader()` in [webapp/static/app.js](webapp/static/app.js) builds a self-contained `story-reader.html` with the story JSON + minimal inline CSS/JS baked in. Triggered by the "Export Reader" header button
 - **No "similar endings" detection** — status counts terminals but doesn't cluster pages that end the same way
 
 ### Project hygiene
@@ -68,5 +68,4 @@ _All five items below were closed in [webapp/static/app.js](webapp/static/app.js
 
 1. **Fix the broken Import CoT button** — ship `cot-example.json` as a static asset and load it via `fetch()`; restores a one-click example without needing a server
 2. **Decide on the orphaned backend** — either delete [webapp/server.py](webapp/server.py) + [webapp/story_model.py](webapp/story_model.py) + [scripts/import_to_authoring.py](scripts/import_to_authoring.py), or keep them as an opt-in local dev mode and document the two-track workflow
-3. **Static HTML reader export** — biggest remaining Fork-Instructions gap; render a reader-only bundle that can be handed to end-users without the authoring UI
-4. **Update [Codebase.md](Codebase.md)** to reflect static-only mode so the next contributor doesn't re-learn from stale notes
+3. **Update [Codebase.md](Codebase.md)** to reflect static-only mode so the next contributor doesn't re-learn from stale notes

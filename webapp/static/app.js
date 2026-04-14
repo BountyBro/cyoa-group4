@@ -86,6 +86,7 @@ const saveButton = document.getElementById("save-button");
 const undoButton = document.getElementById("undo-button");
 const downloadButton = document.getElementById("download-button");
 const generateButton = document.getElementById("generate-button");
+const exportReaderButton = document.getElementById("export-reader-button");
 const uploadButton = document.getElementById("upload-button");
 const uploadInput = document.getElementById("upload-input");
 const editModeButton = document.getElementById("edit-mode-button");
@@ -686,6 +687,83 @@ function downloadStory() {
   URL.revokeObjectURL(url);
 }
 
+function exportReader() {
+  if (mode === "edit") {
+    updateCurrentPage();
+    persist();
+  }
+  const title = (story.title || "My Adventure").toString();
+  const json = JSON.stringify(story)
+    .replace(/</g, "\\u003c")
+    .replace(/-->/g, "--\\u003e");
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>${escapeHtml(title)}</title>
+<style>
+  :root { color-scheme: light; font-family: Inter, system-ui, sans-serif; }
+  body { margin: 0; background: #eef2ff; color: #0f172a; }
+  main { max-width: 720px; margin: 0 auto; padding: 32px 20px; }
+  .card { background: #fff; border-radius: 20px; padding: 28px; box-shadow: 0 18px 48px rgba(15,23,42,0.12); }
+  h1 { margin: 0 0 20px; font-size: 1.6rem; }
+  .text { line-height: 1.75; margin-bottom: 24px; }
+  .text p { margin: 0 0 1rem; }
+  button { display: block; width: 100%; text-align: left; margin: 10px 0; padding: 14px 18px;
+    border: 1px solid #bfdbfe; border-radius: 14px; background: #f8fafc; color: #1d4ed8;
+    font: inherit; cursor: pointer; }
+  button:hover { background: #eff6ff; }
+  .end { margin-top: 16px; padding: 16px; border-radius: 14px; background: #fef3c7; color: #92400e; }
+  .restart { margin-top: 18px; background: #2563eb; color: #fff; border: none; text-align: center; }
+</style>
+</head>
+<body>
+<main>
+  <div class="card">
+    <h1 id="page-title"></h1>
+    <div id="page-text" class="text"></div>
+    <div id="choices"></div>
+    <button class="restart" id="restart">Restart</button>
+  </div>
+</main>
+<script>
+const STORY = ${json};
+const titleEl = document.getElementById("page-title");
+const textEl = document.getElementById("page-text");
+const choicesEl = document.getElementById("choices");
+const restartEl = document.getElementById("restart");
+function esc(s) { return String(s).replace(/[&"'<>]/g, c => ({"&":"&amp;","\\"":"&quot;","'":"&#39;","<":"&lt;",">":"&gt;"}[c])); }
+function render(pageId) {
+  const page = STORY.pages[pageId];
+  if (!page) { titleEl.textContent = "Missing page"; textEl.innerHTML = ""; choicesEl.innerHTML = ""; return; }
+  titleEl.textContent = "Page " + page.id + ": " + (page.title || "");
+  textEl.innerHTML = String(page.text || "").split(/\\n\\n+/).map(b => "<p>" + esc(b).replace(/\\n/g, "<br>") + "</p>").join("");
+  choicesEl.innerHTML = "";
+  const choices = (page.choices || []).filter(c => c.target && STORY.pages[c.target]);
+  if (choices.length === 0) {
+    const end = document.createElement("div");
+    end.className = "end";
+    end.textContent = "The End.";
+    choicesEl.appendChild(end);
+    return;
+  }
+  for (const c of choices) {
+    const b = document.createElement("button");
+    b.textContent = c.label || ("Go to " + c.target);
+    b.addEventListener("click", () => render(String(c.target)));
+    choicesEl.appendChild(b);
+  }
+}
+const start = STORY.startPageId || Object.keys(STORY.pages)[0];
+restartEl.addEventListener("click", () => render(start));
+render(start);
+</script>
+</body>
+</html>`;
+  downloadFile(html, "story-reader.html", "text/html");
+}
+
 function generateVariants() {
   if (mode === "edit") {
     updateCurrentPage();
@@ -737,6 +815,7 @@ importButton.addEventListener("click", importCoT);
 saveButton.addEventListener("click", saveStory);
 downloadButton.addEventListener("click", downloadStory);
 generateButton.addEventListener("click", generateVariants);
+exportReaderButton?.addEventListener("click", exportReader);
 uploadButton.addEventListener("click", () => uploadInput.click());
 uploadInput.addEventListener("change", handleUploadFile);
 editModeButton.addEventListener("click", () => setMode("edit"));
