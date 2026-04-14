@@ -7,6 +7,7 @@ const pageTextInput = document.getElementById("page-text");
 const choicesContainer = document.getElementById("choices");
 const addPageButton = document.getElementById("add-page-button");
 const addChoiceButton = document.getElementById("add-choice-button");
+const importButton = document.getElementById("import-button");
 const saveButton = document.getElementById("save-button");
 const graphPreview = document.getElementById("graphPreview");
 
@@ -185,8 +186,23 @@ choicesContainer?.addEventListener("click", (event) => {
   }
 });
 
+async function importCoT() {
+  if (!confirm("This will replace the current story with the Cave of Time pages. Continue?")) {
+    return;
+  }
+  const response = await fetch("/api/import");
+  if (response.ok) {
+    const result = await response.json();
+    await fetchStory();
+    alert(`Imported ${result.page_count} pages. Start page: ${result.start_page}.`);
+  } else {
+    alert("Import failed. Make sure the server is run from the repo root and the OCR pages exist.");
+  }
+}
+
 addPageButton.addEventListener("click", addPage);
 addChoiceButton.addEventListener("click", addChoice);
+importButton.addEventListener("click", importCoT);
 saveButton.addEventListener("click", saveStory);
 pageTitleInput.addEventListener("input", () => {
   if (story && currentPageId) {

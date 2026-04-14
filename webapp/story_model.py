@@ -1,11 +1,20 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
 STORY_FILE = Path("output") / "authoring-story.json"
 STORY_OUTPUT_DIR = Path("output") / "authoring-stories"
+COT_PAGES_DIR = Path("cyoa-group4") / "output" / "cot-pages-ocr-v2"
+
+_PAGE_FILE_RE = re.compile(r"^(\d+)-CoT\.txt$")
+_TURN_TO_RE = re.compile(
+    r"\b(?:turn|tum|go|follow|take|return)\b[^\n]{0,120}?\b(?:to|ta|io)\b[^\n]{0,20}?"
+    r"(?:page|poge|p\.)\s*([0-9IlOoSsZz]{1,3})",
+    flags=re.IGNORECASE,
+)
 
 Story = Dict[str, Any]
 StoryPage = Dict[str, Any]
@@ -140,6 +149,61 @@ def save_story_variants(variants: List[Dict[str, Any]], output_dir: Path = STORY
     manifest_path = output_dir / "manifest.json"
     manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
     return manifest
+
+
+def _normalize_page_token(token: str) -> int | None:
+    mapped = (
+        token.strip()
+        .replace("O", "0").replace("o", "0")
+        .replace("I", "1").replace("l", "1").replace("L", "1")
+        .replace("S", "5").replace("s", "5")
+        .replace("Z", "2").replace("z", "2")
+    )
+    if not mapped.isdigit():
+        return None
+    value = int(mapped)
+    return value if 1 <= value <= 300 else None
+
+
+def _extract_choices(text: str, known_pages: set) -> list:
+    choices = []
+    seen: set = set()
+    for block in re.split(r"\n\n+", text):
+        m = _TURN_TO_RE.search(block)
+        if not m:
+            continue
+        target = _normalize_page_token(m.group(1))
+        if target is None or target not in known_pages or target in seen:
+            continue
+        seen.add(target)
+        before = block[: m.start()]
+        if_matches = list(re.finditer(r"\bIf\b", before, flags=re.IGNORECASE))
+        raw = before[if_matches[-1].start() :] if if_matches else before
+        label = re.sub(r"\s*\n\s*", " ", raw).strip().rstrip(".,;")
+        choices.append({"label": label, "target": str(target)})
+    return choices
+
+
+def import_cot_pages(pages_dir: Path = COT_PAGES_DIR, start_page: int = 2) -> Story:
+    """Build an authoring story from the extracted Cave of Time page files."""
+    raw: dict[int, str] = {}
+    for path in sorted(pages_dir.glob("*-CoT.txt")):
+        m = _PAGE_FILE_RE.match(path.name)
+        if m:
+            raw[int(m.group(1))] = path.read_text(encoding="utf-8", errors="ignore")
+
+    known = set(raw.keys())
+    pages: dict[str, Any] = {}
+    for num in sorted(raw.keys()):
+        text = raw[num]
+        body = re.sub(r"^\s*Page\s+\d+\s*\n?", "", text).strip()
+        choices = _extract_choices(text, known)
+        is_terminal = bool(re.search(r"\bthe\s+end\b", text, flags=re.IGNORECASE))
+        if not choices and not is_terminal and (num + 1) in known:
+            choices = [{"label": "Continue", "target": str(num + 1)}]
+        pages[str(num)] = {"id": str(num), "title": f"Page {num}", "text": body, "choices": choices}
+
+    return {"startPageId": str(start_page), "pages": pages}
 
 
 def story_to_mermaid(story: Story) -> str:
