@@ -61,37 +61,54 @@ function renderPages() {
       continue;
     }
 
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "page-item" + (page.id === currentPageId ? " selected" : "");
-    button.innerHTML = `<span>${page.id}: ${escapeHtml(title)}</span>${renderPageBadges(page.id)}`;
-    button.addEventListener("click", () => selectPage(page.id));
-    pagesContainer.appendChild(button);
+    const item = document.createElement("div");
+    item.className = "page-item" + (page.id === currentPageId ? " selected" : "");
+    item.addEventListener("click", () => selectPage(page.id));
+
+    const label = document.createElement("span");
+    label.className = "page-item-label";
+    label.innerHTML = `${page.id}: ${escapeHtml(title)}`;
+
+    const del = document.createElement("button");
+    del.type = "button";
+    del.className = "page-delete";
+    del.title = "Delete this page";
+    del.textContent = "×";
+    del.addEventListener("click", (event) => {
+      event.stopPropagation();
+      deletePage(page.id);
+    });
+
+    item.appendChild(label);
+    item.appendChild(renderPageBadgesNode(page.id));
+    item.appendChild(del);
+    pagesContainer.appendChild(item);
   }
 }
 
-function renderPageBadges(pageId) {
+function renderPageBadgesNode(pageId) {
+  const group = document.createElement("span");
+  group.className = "badge-group";
   if (!storyStatus) {
-    return "";
+    return group;
   }
   const status = storyStatus.page_status[pageId] || {};
-  const badges = [];
-  if (status.is_start) {
-    badges.push('<span class="badge badge-start">Start</span>');
+  const defs = [
+    [status.is_start,    "badge-start",    "Start"],
+    [status.is_terminal, "badge-terminal", "Terminal"],
+    [status.is_orphan,   "badge-orphan",   "Orphan"],
+    [status.is_branch,   "badge-branch",   "Branch"],
+    [!status.has_text,   "badge-empty",    "Empty"],
+  ];
+  for (const [condition, cls, label] of defs) {
+    if (condition) {
+      const span = document.createElement("span");
+      span.className = `badge ${cls}`;
+      span.textContent = label;
+      group.appendChild(span);
+    }
   }
-  if (status.is_terminal) {
-    badges.push('<span class="badge badge-terminal">Terminal</span>');
-  }
-  if (status.is_orphan) {
-    badges.push('<span class="badge badge-orphan">Orphan</span>');
-  }
-  if (status.is_branch) {
-    badges.push('<span class="badge badge-branch">Branch</span>');
-  }
-  if (!status.has_text) {
-    badges.push('<span class="badge badge-empty">Empty</span>');
-  }
-  return `<span class="badge-group">${badges.join("")}</span>`;
+  return group;
 }
 
 function selectPage(pageId) {
@@ -244,6 +261,42 @@ function deleteChoice(index) {
   }
   page.choices.splice(index, 1);
   renderChoices(page);
+}
+
+function deletePage(pageId) {
+  const allPages = Object.keys(story.pages);
+  if (allPages.length <= 1) {
+    alert("Cannot delete the only page in the story.");
+    return;
+  }
+
+  // Count pages that have a choice pointing here
+  const incomingPages = Object.values(story.pages).filter((p) =>
+    (p.choices || []).some((c) => String(c.target) === String(pageId))
+  );
+
+  const warningPart = incomingPages.length > 0
+    ? ` ${incomingPages.length} other page(s) have choices pointing here and will become dangling.`
+    : "";
+
+  if (!confirm(`Delete page ${pageId}?${warningPart}`)) {
+    return;
+  }
+
+  delete story.pages[pageId];
+
+  // If the deleted page was the start, reassign to the lowest remaining page
+  if (story.startPageId === String(pageId)) {
+    story.startPageId = String(Math.min(...Object.keys(story.pages).map(Number)));
+  }
+
+  // Move selection to start page if deleted page was selected
+  if (currentPageId === String(pageId)) {
+    currentPageId = story.startPageId;
+  }
+
+  renderPages();
+  renderCurrentPage();
 }
 
 async function saveStory() {
