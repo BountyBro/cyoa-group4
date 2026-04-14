@@ -4,10 +4,13 @@ This folder contains a lightweight web-based authoring tool for branching "Choos
 
 ## Run the authoring tool
 
-From the repository root:
+This version of the authoring tool is now static-only and works entirely in the browser. You can open `webapp/static/index.html` directly or serve the `webapp/static` folder from any static host.
+
+To preview locally with a simple file server:
 
 ```bash
-python webapp/server.py
+cd webapp/static
+python -m http.server 8000
 ```
 
 Then open:
