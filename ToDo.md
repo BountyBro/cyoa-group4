@@ -38,10 +38,10 @@ Location: [webapp/static/](webapp/static/)
 ## What's Still Missing
 
 ### Regressions caused by the Netlify static refactor
-- **Import CoT button is broken** — `importCoT()` in [webapp/static/app.js](webapp/static/app.js) now just shows an alert: "Import from the server is disabled in static mode. Use Upload Story to load a story JSON file instead." The Cave of Time example is no longer reachable from the UI. Fix: ship a pre-built `authoring-story.cot.json` inside `webapp/static/` and have the button `fetch()` it as a static asset
-- **Orphaned backend code** — [webapp/server.py](webapp/server.py), [webapp/story_model.py](webapp/story_model.py), and [scripts/import_to_authoring.py](scripts/import_to_authoring.py) are no longer used by the deployed site. Either delete them or keep them as an optional local-dev fallback and document the split
-- **localStorage is single-browser** — there is no longer any way to share an in-progress story across devices or browsers except manual Download/Upload JSON
-- **Starter story is hardcoded in JS** — `DEFAULT_STORY` lives at the top of [webapp/static/app.js](webapp/static/app.js) instead of a JSON asset, so editing the starter requires a code change
+- ~~**Import CoT button is broken**~~ — `cot-example.json` now ships in [webapp/static/](webapp/static/) (built from the OCR pages by [scripts/import_to_authoring.py](scripts/import_to_authoring.py)) and `importCoT()` `fetch()`es it
+- ~~**Orphaned backend code**~~ — `webapp/server.py` and `webapp/story_model.py` deleted. `scripts/import_to_authoring.py` is retained as a build-time tool for regenerating `cot-example.json` and is documented in [webapp/README.md](webapp/README.md)
+- **localStorage is single-browser** — there is no longer any way to share an in-progress story across devices or browsers except manual Download/Upload JSON. No fix planned while the site remains static-only
+- ~~**Starter story is hardcoded in JS**~~ — moved to [webapp/static/default-story.json](webapp/static/default-story.json) and loaded via `fetch()` on first visit (with a tiny inline fallback if the fetch fails)
 
 ### Authoring tool — remaining gaps
 _All five items below were closed in [webapp/static/app.js](webapp/static/app.js), [webapp/static/index.html](webapp/static/index.html), and [webapp/static/styles.css](webapp/static/styles.css)._

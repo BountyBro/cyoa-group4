@@ -21,14 +21,27 @@ http://127.0.0.1:8000/
 
 ## Features included
 
-- Page list with search and status badges
-- Page title, text, and choice editing
-- Story health panel showing terminal, branch, orphan, empty, and unreachable pages
-- Live Mermaid graph preview of the story structure
-- Interactive reader mode for following story paths inside the app
-- Save and download story JSON
-- Import the extracted Cave of Time pages into the authoring story
-- Generate story variants from the current story data
+- Page list with search, status badges, and per-page delete
+- Page title, text, and choice editing with auto-save to `localStorage`
+- Live validation of choice targets (red outline for dangling IDs)
+- Undo stack (30 steps) with `Ctrl/Cmd+Z`
+- Clickable Mermaid graph preview that jumps to the clicked page
+- Story health panel (terminal, branch, orphan, empty, unreachable)
+- Reader mode for following story paths inside the app
+- Download story JSON, Upload story JSON
+- Import the Cave of Time example (shipped as `cot-example.json`)
+- Export Reader — downloads a self-contained `story-reader.html`
+- Generate Variants — bounded path enumeration to `story-variants.json`
+
+## Regenerating the Cave of Time example
+
+The `cot-example.json` shipped in `webapp/static/` is built from the OCR pages via:
+
+```bash
+python scripts/import_to_authoring.py --output webapp/static/cot-example.json
+```
+
+Only needed if the source OCR or import logic changes.
 
 ## Notes
 

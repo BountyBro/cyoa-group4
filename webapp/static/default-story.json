@@ -1,0 +1,22 @@
+{
+  "startPageId": "1",
+  "pages": {
+    "1": {
+      "id": "1",
+      "title": "Start",
+      "text": "Write the opening of your story here. Add choices to branch the adventure.",
+      "choices": [
+        {
+          "label": "Add a choice to begin",
+          "target": "2"
+        }
+      ]
+    },
+    "2": {
+      "id": "2",
+      "title": "Next Page",
+      "text": "Write the next page of the story.",
+      "choices": []
+    }
+  }
+}

@@ -1,1 +1,2 @@
-output/authoring-story.json
+__pycache__/
+*.pyc

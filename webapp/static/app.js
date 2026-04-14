@@ -1,25 +1,11 @@
 const STORAGE_KEY = "cyoa-authoring-story";
+const DEFAULT_STORY_URL = "default-story.json";
+const COT_EXAMPLE_URL = "cot-example.json";
 
-const DEFAULT_STORY = {
+const FALLBACK_STORY = {
   startPageId: "1",
   pages: {
-    "1": {
-      id: "1",
-      title: "Start",
-      text: "Write the opening of your story here. Add choices to branch the adventure.",
-      choices: [
-        {
-          label: "Add a choice to begin",
-          target: "2",
-        },
-      ],
-    },
-    "2": {
-      id: "2",
-      title: "Next Page",
-      text: "Write the next page of the story.",
-      choices: [],
-    },
+    "1": { id: "1", title: "Start", text: "", choices: [] },
   },
 };
 
@@ -131,8 +117,19 @@ function downloadFile(content, filename, type) {
   URL.revokeObjectURL(url);
 }
 
-function fetchStory() {
-  story = loadStoryFromLocalStorage() || JSON.parse(JSON.stringify(DEFAULT_STORY));
+async function fetchStory() {
+  const stored = loadStoryFromLocalStorage();
+  if (stored) {
+    story = stored;
+  } else {
+    try {
+      const response = await fetch(DEFAULT_STORY_URL, { cache: "no-store" });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      story = await response.json();
+    } catch {
+      story = JSON.parse(JSON.stringify(FALLBACK_STORY));
+    }
+  }
   currentPageId = story.startPageId || Object.keys(story.pages)[0];
   renderPages();
   renderCurrentPage();
@@ -644,8 +641,26 @@ function renderStatus() {
   statusDetail.innerHTML = details.join("");
 }
 
-function importCoT() {
-  alert("Import from the server is disabled in static mode. Use Upload Story to load a story JSON file instead.");
+async function importCoT() {
+  if (!confirm("Replace the current story with the Cave of Time example? This cannot be undone unless you Undo.")) {
+    return;
+  }
+  try {
+    const response = await fetch(COT_EXAMPLE_URL, { cache: "no-store" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const imported = await response.json();
+    snapshot();
+    story = imported;
+    if (!story.startPageId) story.startPageId = chooseStartPage(story);
+    persist();
+    currentPageId = story.startPageId;
+    renderPages();
+    renderCurrentPage();
+    refreshGraph();
+    refreshStatus();
+  } catch (error) {
+    alert(`Failed to load Cave of Time example: ${error.message}`);
+  }
 }
 
 function setMode(newMode) {
