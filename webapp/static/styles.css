@@ -303,6 +303,21 @@ button.secondary:hover {
   width: 100%;
 }
 
+.choice-item input.invalid {
+  border-color: #dc2626;
+  background: #fef2f2;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button:disabled:hover {
+  transform: none;
+  background: #2563eb;
+}
+
 .choice-row {
   display: flex;
   gap: 12px;

@@ -28,6 +28,52 @@ let storyStatus = null;
 let currentPageId = null;
 let mode = "edit";
 
+const UNDO_LIMIT = 30;
+const undoStack = [];
+
+function persist() {
+  if (story) {
+    saveStoryToLocalStorage(story);
+  }
+}
+
+function snapshot() {
+  if (!story) return;
+  undoStack.push(JSON.stringify(story));
+  if (undoStack.length > UNDO_LIMIT) undoStack.shift();
+  updateUndoButton();
+}
+
+function updateUndoButton() {
+  if (typeof undoButton !== "undefined" && undoButton) {
+    undoButton.disabled = undoStack.length === 0;
+  }
+}
+
+function undo() {
+  if (undoStack.length === 0) return;
+  story = JSON.parse(undoStack.pop());
+  currentPageId = story.startPageId || Object.keys(story.pages)[0];
+  persist();
+  renderPages();
+  renderCurrentPage();
+  refreshGraph();
+  refreshStatus();
+  updateUndoButton();
+}
+
+function isValidTarget(target) {
+  const value = String(target || "");
+  return value === "" || (story && story.pages && value in story.pages);
+}
+
+window.selectPageFromGraph = function (pageId) {
+  if (mode !== "edit") {
+    setMode("edit");
+  }
+  selectPage(String(pageId));
+};
+
 const pagesContainer = document.getElementById("pages");
 const pageSearchInput = document.getElementById("page-search");
 const pageTitleInput = document.getElementById("page-title");
@@ -37,6 +83,7 @@ const addPageButton = document.getElementById("add-page-button");
 const addChoiceButton = document.getElementById("add-choice-button");
 const importButton = document.getElementById("import-button");
 const saveButton = document.getElementById("save-button");
+const undoButton = document.getElementById("undo-button");
 const downloadButton = document.getElementById("download-button");
 const generateButton = document.getElementById("generate-button");
 const uploadButton = document.getElementById("upload-button");
@@ -198,10 +245,11 @@ function renderChoices(page) {
     const choice = choices[index];
     const row = document.createElement("div");
     row.className = "choice-item";
+    const targetClass = isValidTarget(choice.target) ? "" : " invalid";
     row.innerHTML = `
       <div class="choice-row">
         <input type="text" placeholder="Choice label" value="${escapeHtml(choice.label)}" data-field="label" data-index="${index}" />
-        <input type="text" placeholder="Target page ID" value="${escapeHtml(choice.target)}" data-field="target" data-index="${index}" />
+        <input type="text" class="${targetClass.trim()}" placeholder="Target page ID" value="${escapeHtml(choice.target)}" data-field="target" data-index="${index}" />
         <button type="button" data-action="delete" data-index="${index}">Delete</button>
       </div>
     `;
@@ -278,6 +326,7 @@ function updateCurrentPage() {
 }
 
 function addPage() {
+  snapshot();
   if (mode === "edit") {
     updateCurrentPage();
   }
@@ -289,8 +338,11 @@ function addPage() {
     choices: [],
   };
   currentPageId = nextId;
+  persist();
   renderPages();
   renderCurrentPage();
+  refreshGraph();
+  refreshStatus();
 }
 
 function addChoice() {
@@ -298,9 +350,12 @@ function addChoice() {
   if (!page) {
     return;
   }
+  snapshot();
   page.choices = page.choices || [];
   page.choices.push({ label: "", target: "" });
+  persist();
   renderChoices(page);
+  refreshStatus();
 }
 
 function deleteChoice(index) {
@@ -308,8 +363,12 @@ function deleteChoice(index) {
   if (!page) {
     return;
   }
+  snapshot();
   page.choices.splice(index, 1);
+  persist();
   renderChoices(page);
+  refreshGraph();
+  refreshStatus();
 }
 
 function deletePage(pageId) {
@@ -323,16 +382,27 @@ function deletePage(pageId) {
   const incomingPages = Object.values(story.pages).filter((p) =>
     (p.choices || []).some((c) => String(c.target) === String(pageId))
   );
+  const incomingChoiceCount = incomingPages.reduce(
+    (sum, p) => sum + (p.choices || []).filter((c) => String(c.target) === String(pageId)).length,
+    0,
+  );
 
   const warningPart = incomingPages.length > 0
-    ? ` ${incomingPages.length} other page(s) have choices pointing here and will become dangling.`
+    ? ` ${incomingPages.length} page(s) link here; ${incomingChoiceCount} choice(s) will be removed.`
     : "";
 
   if (!confirm(`Delete page ${pageId}?${warningPart}`)) {
     return;
   }
 
+  snapshot();
   delete story.pages[pageId];
+
+  for (const otherPage of Object.values(story.pages)) {
+    otherPage.choices = (otherPage.choices || []).filter(
+      (c) => String(c.target) !== String(pageId),
+    );
+  }
 
   // If the deleted page was the start, reassign to the lowest remaining page
   if (story.startPageId === String(pageId)) {
@@ -344,8 +414,11 @@ function deletePage(pageId) {
     currentPageId = story.startPageId;
   }
 
+  persist();
   renderPages();
   renderCurrentPage();
+  refreshGraph();
+  refreshStatus();
 }
 
 function saveStory() {
@@ -358,7 +431,15 @@ function saveStory() {
   alert("Story saved locally in your browser.");
 }
 
+let mermaidInitialized = false;
+function ensureMermaidInitialized() {
+  if (mermaidInitialized || !window.mermaid || !mermaid.initialize) return;
+  mermaid.initialize({ startOnLoad: false, securityLevel: "loose" });
+  mermaidInitialized = true;
+}
+
 function refreshGraph() {
+  ensureMermaidInitialized();
   const mermaidText = storyToMermaid(story);
   if (!window.mermaid || !mermaid.render) {
     graphPreview.textContent = "Mermaid is not available.";
@@ -386,6 +467,7 @@ function storyToMermaid(story) {
         lines.push(`${sanitizeId(page.id)} -->|${choiceLabel}| ${sanitizeId(choice.target)}`);
       }
     }
+    lines.push(`click ${sanitizeId(page.id)} call selectPageFromGraph("${escapeMermaid(page.id)}")`);
   }
   return lines.join("\n");
 }
@@ -571,6 +653,7 @@ function setMode(newMode) {
   }
   if (mode === "edit") {
     updateCurrentPage();
+    persist();
   }
   mode = newMode;
   editModeButton.classList.toggle("active", mode === "edit");
@@ -625,6 +708,7 @@ function handleUploadFile(event) {
   reader.addEventListener("load", () => {
     try {
       const imported = JSON.parse(String(reader.result));
+      snapshot();
       story = imported;
       if (!story.startPageId) {
         story.startPageId = chooseStartPage(story);
@@ -661,7 +745,51 @@ readerResetButton.addEventListener("click", resetReader);
 pageTitleInput.addEventListener("input", () => {
   if (story && currentPageId && mode === "edit") {
     story.pages[currentPageId].title = pageTitleInput.value;
+    persist();
     renderPages();
+  }
+});
+
+pageTextInput.addEventListener("input", () => {
+  if (story && currentPageId && mode === "edit") {
+    story.pages[currentPageId].text = pageTextInput.value;
+    persist();
+    refreshStatus();
+  }
+});
+
+choicesContainer.addEventListener("input", (event) => {
+  const input = event.target;
+  if (!input || !input.dataset || input.dataset.field === undefined) return;
+  if (!story || !currentPageId || !story.pages[currentPageId]) return;
+  const index = Number(input.dataset.index);
+  const field = input.dataset.field;
+  const page = story.pages[currentPageId];
+  page.choices = page.choices || [];
+  page.choices[index] = page.choices[index] || { label: "", target: "" };
+  page.choices[index][field] = input.value;
+  if (field === "target") {
+    input.classList.toggle("invalid", !isValidTarget(input.value));
+  }
+  persist();
+  refreshStatus();
+  refreshGraph();
+});
+
+choicesContainer.addEventListener("click", (event) => {
+  const button = event.target.closest("button[data-action=\"delete\"]");
+  if (!button) return;
+  const index = Number(button.dataset.index);
+  deleteChoice(index);
+});
+
+undoButton?.addEventListener("click", undo);
+document.addEventListener("keydown", (event) => {
+  if ((event.ctrlKey || event.metaKey) && event.key === "z" && !event.shiftKey) {
+    const tag = (event.target && event.target.tagName) || "";
+    if (tag === "INPUT" || tag === "TEXTAREA") return;
+    event.preventDefault();
+    undo();
   }
 });
 

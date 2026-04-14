@@ -44,11 +44,12 @@ Location: [webapp/static/](webapp/static/)
 - **Starter story is hardcoded in JS** — `DEFAULT_STORY` lives at the top of [webapp/static/app.js](webapp/static/app.js) instead of a JSON asset, so editing the starter requires a code change
 
 ### Authoring tool — remaining gaps
-- **No choice-target validation while editing** — a choice pointing to a non-existent page is accepted silently. Status panel flags dangling targets after the fact, but the edit form doesn't warn while typing
-- **Deleted pages leave dangling choices behind** — `deletePage` warns the user but doesn't offer to clean up the now-broken `target` references in other pages
-- **Mode switches drop unsaved edits silently** — `setMode("reader")` calls `updateCurrentPage()` which mutates in-memory only; nothing warns about unsaved state
-- **Graph isn't interactive** — Mermaid renders but you can't click a node to jump to that page
-- **No undo / history** — destructive actions (delete choice, delete page, upload) are one-way
+_All five items below were closed in [webapp/static/app.js](webapp/static/app.js), [webapp/static/index.html](webapp/static/index.html), and [webapp/static/styles.css](webapp/static/styles.css)._
+- ~~**No choice-target validation while editing**~~ — target inputs get a red `.invalid` outline live when the value doesn't match an existing page ID
+- ~~**Deleted pages leave dangling choices behind**~~ — `deletePage` now strips every matching `target` from all other pages and the confirm dialog shows the exact choice-removal count
+- ~~**Mode switches drop unsaved edits silently**~~ — auto-save via `persist()` on every title/text/choice keystroke; Save button is now just an explicit graph refresh
+- ~~**Graph isn't interactive**~~ — Mermaid `click` directives + `selectPageFromGraph` bridge jump the editor to the clicked page (requires `securityLevel: "loose"`, now initialized)
+- ~~**No undo / history**~~ — 30-entry `undoStack`; `snapshot()` is taken before add/delete page, add/delete choice, and upload. Undo button in the header plus Ctrl/Cmd+Z
 
 ### Reader / export
 - **No standalone static-HTML export** — Fork-Instructions calls for a shippable reader so end-users can play a completed story without the server. Current reader mode only works inside the authoring app
@@ -68,6 +69,4 @@ Location: [webapp/static/](webapp/static/)
 1. **Fix the broken Import CoT button** — ship `cot-example.json` as a static asset and load it via `fetch()`; restores a one-click example without needing a server
 2. **Decide on the orphaned backend** — either delete [webapp/server.py](webapp/server.py) + [webapp/story_model.py](webapp/story_model.py) + [scripts/import_to_authoring.py](scripts/import_to_authoring.py), or keep them as an opt-in local dev mode and document the two-track workflow
 3. **Static HTML reader export** — biggest remaining Fork-Instructions gap; render a reader-only bundle that can be handed to end-users without the authoring UI
-4. **Choice-target validation + dangling-choice cleanup** — extend `deletePage` to optionally strip broken targets and show red outlines on invalid choice inputs while editing
-5. **Clickable graph nodes** — Mermaid supports click handlers; would make navigation much nicer for medium/large stories
-6. **Update [Codebase.md](Codebase.md)** to reflect static-only mode so the next contributor doesn't re-learn from stale notes
+4. **Update [Codebase.md](Codebase.md)** to reflect static-only mode so the next contributor doesn't re-learn from stale notes
