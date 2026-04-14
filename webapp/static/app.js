@@ -187,7 +187,7 @@ choicesContainer?.addEventListener("click", (event) => {
 });
 
 async function importCoT() {
-  if (!confirm("This will replace the current story with the Cave of Time pages. Continue?")) {
+  if (!confirm("Load the Cave of Time as an example story? This will replace any unsaved changes.")) {
     return;
   }
   const response = await fetch("/api/import");
